@@ -2,7 +2,7 @@
 
 A single-page web app for browsing accredited U.S. universities, colleges, and
 institutes. Search by name or web domain, filter A–Z, and jump straight to each
-school's official website. Built with **React + TypeScript + Vite + Tailwind CSS**.
+school's official website. Built with **Next.js (App Router) + React + TypeScript + Tailwind CSS**.
 
 ## Features
 
@@ -16,9 +16,9 @@ school's official website. Built with **React + TypeScript + Vite + Tailwind CSS
 
 | Tool | Purpose |
 | --- | --- |
+| Next.js 14 | App Router framework, dev server & build |
 | React 18 | UI |
 | TypeScript | Type safety |
-| Vite 5 | Dev server & build |
 | Tailwind CSS 3 | Styling |
 
 ## Getting started
@@ -29,15 +29,15 @@ Requires Node.js 18+.
 # install dependencies
 npm install
 
-# start the dev server (http://localhost:5173)
+# start the dev server (http://localhost:3000)
 npm run dev
 ```
 
 ### Other scripts
 
 ```bash
-npm run build      # production build to dist/
-npm run preview    # preview the production build
+npm run build      # production build (.next/)
+npm run start      # serve the production build
 npm run typecheck  # run the TypeScript compiler with no emit
 ```
 
@@ -45,15 +45,16 @@ npm run typecheck  # run the TypeScript compiler with no emit
 
 ```
 .
-├─ index.html              # entry HTML, loads /src/main.tsx
-├─ src/
-│  ├─ main.tsx             # React root
-│  ├─ App.tsx              # all UI (hero, search, filters, grid, pagination)
-│  ├─ index.css            # Tailwind directives + base styles
-│  └─ data/
-│     └─ universities.json # 2,348 U.S. institutions
+├─ app/
+│  ├─ layout.tsx           # root layout, Inter font, metadata
+│  ├─ page.tsx             # all UI (client component): hero, search, filters, grid, pagination
+│  └─ globals.css          # Tailwind directives + base styles
+├─ data/
+│  └─ universities.json    # 2,348 U.S. institutions
+├─ public/favicon.svg
+├─ next.config.mjs
 ├─ tailwind.config.js
-├─ vite.config.js
+├─ postcss.config.js
 └─ tsconfig.json
 ```
 

@@ -1,5 +1,7 @@
+'use client'
+
 import { useMemo, useState } from 'react'
-import universitiesData from './data/universities.json'
+import universitiesData from '../data/universities.json'
 
 export interface University {
   name: string
@@ -111,6 +113,7 @@ function Logo({ university }: { university: University }) {
         {initials(university.name)}
       </span>
       {src && (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           key={src}
           src={src}
@@ -141,7 +144,13 @@ function ArrowIcon() {
   )
 }
 
-function UniversityCard({ university, index }: { university: University; index: number }) {
+function UniversityCard({
+  university,
+  index,
+}: {
+  university: University
+  index: number
+}) {
   return (
     <a
       href={university.url}
@@ -202,9 +211,7 @@ function SearchInput({
       <svg
         viewBox="0 0 20 20"
         fill="currentColor"
-        className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 ${
-          hero ? 'text-slate-400' : 'text-slate-400'
-        }`}
+        className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
         aria-hidden="true"
       >
         <path
@@ -229,8 +236,8 @@ function SearchInput({
   )
 }
 
-/* ---------- app ---------- */
-export default function App() {
+/* ---------- page ---------- */
+export default function Page() {
   const [query, setQuery] = useState('')
   const [letter, setLetter] = useState('All')
   const [page, setPage] = useState(1)
@@ -345,7 +352,10 @@ export default function App() {
       </section>
 
       {/* Browse */}
-      <main id="browse" className="mx-auto max-w-7xl scroll-mt-16 px-4 py-12 sm:px-6 lg:px-8">
+      <main
+        id="browse"
+        className="mx-auto max-w-7xl scroll-mt-16 px-4 py-12 sm:px-6 lg:px-8"
+      >
         {/* Toolbar */}
         <div className="sticky top-[57px] z-20 -mx-4 mb-8 border-b border-slate-200 bg-slate-50/90 px-4 py-4 backdrop-blur-md sm:mx-0 sm:rounded-2xl sm:border sm:px-5 sm:shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -383,7 +393,8 @@ export default function App() {
               <>
                 Showing{' '}
                 <span className="font-semibold text-slate-700">
-                  {formatNumber(start + 1)}–{formatNumber(start + pageItems.length)}
+                  {formatNumber(start + 1)}–
+                  {formatNumber(start + pageItems.length)}
                 </span>{' '}
                 of{' '}
                 <span className="font-semibold text-slate-700">
@@ -410,7 +421,11 @@ export default function App() {
         {pageItems.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {pageItems.map((u, i) => (
-              <UniversityCard key={`${u.name}-${u.domain}`} university={u} index={i} />
+              <UniversityCard
+                key={`${u.name}-${u.domain}`}
+                university={u}
+                index={i}
+              />
             ))}
           </div>
         ) : (
