@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import universitiesData from '../data/universities.json'
 
 export interface University {
@@ -127,23 +127,6 @@ function Logo({ university }: { university: University }) {
   )
 }
 
-function ArrowIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        d="M3 10a.75.75 0 0 1 .75-.75h8.69L9.22 6.03a.75.75 0 1 1 1.06-1.06l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06l3.22-3.22H3.75A.75.75 0 0 1 3 10Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
-}
-
 function UniversityCard({
   university,
   index,
@@ -152,34 +135,154 @@ function UniversityCard({
   index: number
 }) {
   return (
-    <a
-      href={university.url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <div
       style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
-      className="group flex animate-fade-up flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-100"
+      className="group relative animate-fade-up rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-100"
     >
-      <div className="flex items-start gap-4">
-        <Logo university={university} />
-        <div className="min-w-0 flex-1">
-          <h3 className="line-clamp-2 font-semibold leading-snug text-slate-900 group-hover:text-indigo-600">
-            {university.name}
-          </h3>
-          <p className="mt-1 text-sm text-slate-500">
-            {university.state ?? 'United States'}
-          </p>
+      <button
+        type="button"
+        data-domain={university.domain}
+        aria-label={`View details for ${university.name}`}
+        className="flex w-full flex-col rounded-2xl p-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+      >
+        <div className="flex items-start gap-4">
+          <Logo university={university} />
+          <div className="min-w-0 flex-1">
+            <h3 className="line-clamp-2 font-semibold leading-snug text-slate-900 group-hover:text-indigo-600">
+              {university.name}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {university.state ?? 'United States'}
+            </p>
+          </div>
         </div>
+        <div className="mt-4 w-full border-t border-slate-100 pt-3">
+          <span className="truncate font-mono text-xs text-slate-400">
+            {university.domain}
+          </span>
+        </div>
+      </button>
+    </div>
+  )
+}
+
+function UniversityModal({
+  university,
+  onClose,
+}: {
+  university: University
+  onClose: () => void
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    const dialog = dialogRef.current
+    const focusables = () =>
+      Array.from(
+        dialog?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      )
+
+    focusables()[0]?.focus()
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+        return
+      }
+      if (e.key === 'Tab') {
+        const items = focusables()
+        if (items.length === 0) return
+        const first = items[0]
+        const last = items[items.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = prevOverflow
+      previouslyFocused?.focus()
+    }
+  }, [onClose])
+
+  return (
+    <div
+      data-testid="modal-backdrop"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        onClick={(e) => e.stopPropagation()}
+        className="animate-fade-up w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+      >
+        <div className="flex items-start gap-4">
+          <Logo university={university} />
+          <div className="min-w-0 flex-1">
+            <h2
+              id="modal-title"
+              className="text-xl font-extrabold leading-snug text-slate-900"
+            >
+              {university.name}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {university.state ?? 'United States'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+              <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+            </svg>
+          </button>
+        </div>
+
+        <dl className="mt-6 space-y-3 border-t border-slate-100 pt-4 text-sm">
+          <div className="flex justify-between gap-4">
+            <dt className="text-slate-500">Domain</dt>
+            <dd className="truncate font-mono text-slate-700">
+              {university.domain}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-slate-500">Location</dt>
+            <dd className="text-slate-700">
+              {university.state ?? 'United States'}
+            </dd>
+          </div>
+        </dl>
+
+        <a
+          href={university.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-700"
+        >
+          Visit website
+        </a>
       </div>
-      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-        <span className="truncate font-mono text-xs text-slate-400">
-          {university.domain}
-        </span>
-        <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-indigo-600 opacity-0 transition-opacity group-hover:opacity-100">
-          Visit
-          <ArrowIcon />
-        </span>
-      </div>
-    </a>
+    </div>
   )
 }
 
@@ -241,6 +344,7 @@ export default function Page() {
   const [query, setQuery] = useState('')
   const [letter, setLetter] = useState('All')
   const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<University | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -266,6 +370,22 @@ export default function Page() {
   const safePage = Math.min(page, totalPages)
   const start = (safePage - 1) * PAGE_SIZE
   const pageItems = filtered.slice(start, start + PAGE_SIZE)
+
+  const handleGridClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>('[data-domain]')
+      if (!el) return
+      const domain = el.dataset.domain!
+      // data-action branches are added in Phase B (favorites); default = open.
+      if (el.dataset.action) return
+      const uni = pageItems.find((u) => u.domain === domain)
+      if (uni) {
+        el.focus() // ensure focus is on the trigger so the modal can restore it
+        setSelected(uni)
+      }
+    },
+    [pageItems],
+  )
 
   function scrollToBrowse() {
     document.getElementById('browse')?.scrollIntoView({ behavior: 'smooth' })
@@ -419,7 +539,10 @@ export default function Page() {
 
         {/* Grid / empty state */}
         {pageItems.length > 0 ? (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div
+            onClick={handleGridClick}
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          >
             {pageItems.map((u, i) => (
               <UniversityCard
                 key={`${u.name}-${u.domain}`}
@@ -492,6 +615,13 @@ export default function Page() {
           <p>Logos via Clearbit · Data from the Hipo university list.</p>
         </div>
       </footer>
+
+      {selected && (
+        <UniversityModal
+          university={selected}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   )
 }
