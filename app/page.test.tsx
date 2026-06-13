@@ -72,3 +72,64 @@ describe('University detail modal', () => {
     expect(card).toHaveFocus()
   })
 })
+
+describe('Favorites', () => {
+  it('toggles a favorite and reflects it on the card and in the modal', async () => {
+    const user = userEvent.setup()
+    render(<Page />)
+    await user.type(
+      screen.getAllByLabelText(/search universities/i)[0],
+      'Abilene Christian',
+    )
+
+    const addBtn = await screen.findByRole('button', {
+      name: new RegExp(`add ${ABILENE} to favorites`, 'i'),
+    })
+    await user.click(addBtn)
+
+    // Card now offers "remove"
+    expect(
+      screen.getByRole('button', {
+        name: new RegExp(`remove ${ABILENE} from favorites`, 'i'),
+      }),
+    ).toBeInTheDocument()
+
+    // Open the modal; its star reflects the favorited state
+    await user.click(
+      screen.getByRole('button', {
+        name: new RegExp(`view details for ${ABILENE}`, 'i'),
+      }),
+    )
+    const dialog = screen.getByRole('dialog')
+    expect(
+      within(dialog).getByRole('button', {
+        name: new RegExp(`remove ${ABILENE} from favorites`, 'i'),
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('filters to favorites only', async () => {
+    const user = userEvent.setup()
+    render(<Page />)
+    const search = screen.getAllByLabelText(/search universities/i)[0]
+    await user.type(search, 'Abilene Christian')
+    await user.click(
+      await screen.findByRole('button', {
+        name: new RegExp(`add ${ABILENE} to favorites`, 'i'),
+      }),
+    )
+    // Clear the search so the favorites filter is the only constraint
+    await user.clear(search)
+
+    await user.click(screen.getByRole('button', { name: /^favorites/i }))
+
+    expect(
+      screen.getByRole('button', {
+        name: new RegExp(`view details for ${ABILENE}`, 'i'),
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /view details for 42 US/i }),
+    ).not.toBeInTheDocument()
+  })
+})
