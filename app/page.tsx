@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import universitiesData from '../data/universities.json'
+import { useFavorites } from './lib/useFavorites'
 
 export interface University {
   name: string
@@ -127,18 +128,69 @@ function Logo({ university }: { university: University }) {
   )
 }
 
+function StarButton({
+  domain,
+  active,
+  label,
+  className = '',
+  onClick,
+}: {
+  domain: string
+  active: boolean
+  label: string
+  className?: string
+  onClick?: () => void
+}) {
+  return (
+    <button
+      type="button"
+      data-domain={domain}
+      data-action="favorite"
+      aria-pressed={active}
+      aria-label={label}
+      onClick={onClick}
+      className={`grid place-items-center rounded-full p-2 transition ${
+        active ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400'
+      } ${className}`}
+    >
+      <svg
+        viewBox="0 0 20 20"
+        fill={active ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth="1.5"
+        className="h-5 w-5"
+        aria-hidden="true"
+      >
+        <path d="M10 1.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L10 14.77l-5.2 2.73.99-5.79L1.58 7.62l5.82-.85L10 1.5z" />
+      </svg>
+    </button>
+  )
+}
+
 function UniversityCard({
   university,
   index,
+  isFavorite,
 }: {
   university: University
   index: number
+  isFavorite: boolean
 }) {
   return (
     <div
       style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
       className="group relative animate-fade-up rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-100"
     >
+      <StarButton
+        domain={university.domain}
+        active={isFavorite}
+        label={
+          isFavorite
+            ? `Remove ${university.name} from favorites`
+            : `Add ${university.name} to favorites`
+        }
+        className="absolute right-2 top-2 z-10 bg-white/70 backdrop-blur-sm"
+      />
       <button
         type="button"
         data-domain={university.domain}
@@ -147,7 +199,7 @@ function UniversityCard({
       >
         <div className="flex items-start gap-4">
           <Logo university={university} />
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 pr-8">
             <h3 className="line-clamp-2 font-semibold leading-snug text-slate-900 group-hover:text-indigo-600">
               {university.name}
             </h3>
@@ -169,9 +221,13 @@ function UniversityCard({
 function UniversityModal({
   university,
   onClose,
+  isFavorite,
+  onToggleFavorite,
 }: {
   university: University
   onClose: () => void
+  isFavorite: boolean
+  onToggleFavorite: (domain: string) => void
 }) {
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -246,6 +302,17 @@ function UniversityModal({
               {university.state ?? 'United States'}
             </p>
           </div>
+          <StarButton
+            domain={university.domain}
+            active={isFavorite}
+            label={
+              isFavorite
+                ? `Remove ${university.name} from favorites`
+                : `Add ${university.name} to favorites`
+            }
+            className="shrink-0"
+            onClick={() => onToggleFavorite(university.domain)}
+          />
           <button
             type="button"
             onClick={onClose}
@@ -345,10 +412,14 @@ export default function Page() {
   const [letter, setLetter] = useState('All')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<University | null>(null)
+  const { isFavorite, toggle: toggleFavorite, favorites, hydrated } =
+    useFavorites()
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return universities.filter((u) => {
+      if (favoritesOnly && !favorites.has(u.domain)) return false
       if (letter !== 'All') {
         const first = u.name[0]?.toUpperCase() ?? ''
         if (letter === '#') {
@@ -364,7 +435,7 @@ export default function Page() {
       }
       return true
     })
-  }, [query, letter])
+  }, [query, letter, favoritesOnly, favorites])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -376,15 +447,17 @@ export default function Page() {
       const el = (e.target as HTMLElement).closest<HTMLElement>('[data-domain]')
       if (!el) return
       const domain = el.dataset.domain!
-      // data-action branches are added in Phase B (favorites); default = open.
-      if (el.dataset.action) return
+      if (el.dataset.action === 'favorite') {
+        toggleFavorite(domain)
+        return
+      }
       const uni = pageItems.find((u) => u.domain === domain)
       if (uni) {
         el.focus() // ensure focus is on the trigger so the modal can restore it
         setSelected(uni)
       }
     },
-    [pageItems],
+    [pageItems, toggleFavorite],
   )
 
   function scrollToBrowse() {
@@ -482,6 +555,23 @@ export default function Page() {
             <div className="lg:max-w-xs lg:flex-1">
               <SearchInput value={query} onChange={changeQuery} variant="bar" />
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setFavoritesOnly((v) => !v)
+                setPage(1)
+              }}
+              aria-pressed={favoritesOnly}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                favoritesOnly
+                  ? 'bg-amber-500 text-white shadow'
+                  : 'text-slate-500 hover:bg-amber-50 hover:text-amber-600'
+              }`}
+            >
+              <span aria-hidden="true">★</span>
+              Favorites
+              {hydrated && favorites.size > 0 ? ` (${favorites.size})` : ''}
+            </button>
             <div className="-mx-1 flex gap-1 overflow-x-auto pb-1">
               {LETTERS.map((l) => {
                 const active = l === letter
@@ -523,12 +613,13 @@ export default function Page() {
               </>
             )}
           </p>
-          {(query || letter !== 'All') && (
+          {(query || letter !== 'All' || favoritesOnly) && (
             <button
               type="button"
               onClick={() => {
                 changeQuery('')
                 changeLetter('All')
+                setFavoritesOnly(false)
               }}
               className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
             >
@@ -548,6 +639,7 @@ export default function Page() {
                 key={`${u.name}-${u.domain}`}
                 university={u}
                 index={i}
+                isFavorite={isFavorite(u.domain)}
               />
             ))}
           </div>
@@ -620,6 +712,8 @@ export default function Page() {
         <UniversityModal
           university={selected}
           onClose={() => setSelected(null)}
+          isFavorite={isFavorite(selected.domain)}
+          onToggleFavorite={toggleFavorite}
         />
       )}
     </div>
