@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
 import { University } from "@/app/lib/types";
+import React, { useMemo, useState } from "react";
 
 const GRADIENTS = [
   "from-indigo-500 to-violet-500",
