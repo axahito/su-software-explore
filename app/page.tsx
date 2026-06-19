@@ -1,13 +1,17 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import universitiesData from "../data/universities.json";
 import { useFavorites } from "./lib/useFavorites";
 import type { University } from "./lib/types";
-import UniversityCard from "./components/University/UniversityCard";
 import UniversityModal from "./components/University/UniversityModal";
+import GridView from "./components/GridView";
+import TableView from "./components/TableView";
 import SearchInput from "./components/SearchInput";
 import StatPill from "./components/StatPill";
+import FavoriteFilter from "./components/FavoriteFilter";
+import ViewToggle from "./components/ViewToggle";
+import ContentSkeleton from "./components/ContentSkeleton";
 import formatNumber from "./lib/format";
 import getPageList from "./lib/pagination";
 
@@ -48,6 +52,21 @@ export default function Page() {
     hydrated,
   } = useFavorites();
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [view, setView] = useState<"grid" | "table">("grid");
+  const [mounted, setMounted] = useState(false);
+
+  // After mount, restore the persisted view and flag as mounted so the content
+  // area can swap from the skeleton to the real view. Kept out of the initial
+  // state so the first render matches the server (no hydration mismatch).
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("universe:view");
+      if (stored === "grid" || stored === "table") setView(stored);
+    } catch {
+      // ignore unavailable storage
+    }
+    setMounted(true);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -75,26 +94,6 @@ export default function Page() {
   const start = (safePage - 1) * PAGE_SIZE;
   const pageItems = filtered.slice(start, start + PAGE_SIZE);
 
-  const handleGridClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const el = (e.target as HTMLElement).closest<HTMLElement>(
-        "[data-domain]",
-      );
-      if (!el) return;
-      const domain = el.dataset.domain!;
-      if (el.dataset.action === "favorite") {
-        toggleFavorite(domain);
-        return;
-      }
-      const uni = pageItems.find((u) => u.domain === domain);
-      if (uni) {
-        el.focus(); // ensure focus is on the trigger so the modal can restore it
-        setSelected(uni);
-      }
-    },
-    [pageItems, toggleFavorite],
-  );
-
   function scrollToBrowse() {
     document.getElementById("browse")?.scrollIntoView({ behavior: "smooth" });
   }
@@ -112,6 +111,15 @@ export default function Page() {
   function goToPage(p: number) {
     setPage(p);
     scrollToBrowse();
+  }
+
+  function changeView(v: "grid" | "table") {
+    setView(v);
+    try {
+      localStorage.setItem("universe:view", v);
+    } catch {
+      // ignore write failures
+    }
   }
 
   return (
@@ -191,27 +199,22 @@ export default function Page() {
       >
         {/* Toolbar */}
         <div className="sticky top-[57px] z-20 -mx-4 mb-8 border-b border-slate-200 bg-slate-50/90 px-4 py-4 backdrop-blur-md sm:mx-0 sm:rounded-2xl sm:border sm:px-5 sm:shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="lg:max-w-xs lg:flex-1">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-4 items-center justify-center lg:max-w-xs lg:flex-1">
               <SearchInput value={query} onChange={changeQuery} variant="bar" />
+              {/* favorites only and view toggle */}
+              <div className="flex gap-4">
+                <FavoriteFilter
+                  active={favoritesOnly}
+                  count={hydrated ? favorites.size : 0}
+                  onToggle={() => {
+                    setFavoritesOnly((v) => !v);
+                    setPage(1);
+                  }}
+                />
+                <ViewToggle value={view} onChange={changeView} />
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setFavoritesOnly((v) => !v);
-                setPage(1);
-              }}
-              aria-pressed={favoritesOnly}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                favoritesOnly
-                  ? "bg-amber-500 text-white shadow"
-                  : "text-slate-500 hover:bg-amber-50 hover:text-amber-600"
-              }`}
-            >
-              <span aria-hidden="true">★</span>
-              Favorites
-              {hydrated && favorites.size > 0 ? ` (${favorites.size})` : ""}
-            </button>
             <div className="-mx-1 flex gap-1 overflow-x-auto pb-1">
               {LETTERS.map((l) => {
                 const active = l === letter;
@@ -268,30 +271,23 @@ export default function Page() {
           )}
         </div>
 
-        {/* Grid / empty state */}
-        {pageItems.length > 0 ? (
-          <div
-            onClick={handleGridClick}
-            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          >
-            {pageItems.map((u, i) => (
-              <UniversityCard
-                key={`${u.name}-${u.domain}`}
-                university={u}
-                index={i}
-                isFavorite={isFavorite(u.domain)}
-              />
-            ))}
-          </div>
+        {/* Grid / table view (skeleton until the persisted view is restored) */}
+        {!mounted ? (
+          <ContentSkeleton />
+        ) : view === "grid" ? (
+          <GridView
+            rows={pageItems}
+            isFavorite={isFavorite}
+            onOpen={setSelected}
+            onToggleFavorite={toggleFavorite}
+          />
         ) : (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-20 text-center">
-            <p className="text-lg font-semibold text-slate-700">
-              No universities found
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              Try a different search term or letter.
-            </p>
-          </div>
+          <TableView
+            rows={pageItems}
+            isFavorite={isFavorite}
+            onOpen={setSelected}
+            onToggleFavorite={toggleFavorite}
+          />
         )}
 
         {/* Pagination */}

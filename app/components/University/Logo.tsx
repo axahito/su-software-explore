@@ -40,7 +40,13 @@ function initials(name: string): string {
   return letters || name.slice(0, 2).toUpperCase();
 }
 
-function Logo({ university }: { university: University }) {
+function Logo({
+  university,
+  size = "md",
+}: {
+  university: University;
+  size?: "sm" | "md";
+}) {
   // Try a crisp brand logo first, then a favicon, then fall back to initials.
   const sources = useMemo(() => {
     if (!university.domain) return [] as string[];
@@ -51,14 +57,15 @@ function Logo({ university }: { university: University }) {
   }, [university.domain]);
   const [idx, setIdx] = useState(0);
   const src = sources[idx];
+  const box = size === "sm" ? "h-9 w-9 text-xs" : "h-14 w-14 text-lg";
 
   return (
     <div
-      className={`relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br ${gradientFor(
+      className={`relative grid ${box} shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br ${gradientFor(
         university.name,
       )} shadow-inner`}
     >
-      <span className="select-none text-lg font-bold tracking-tight text-white">
+      <span className="select-none font-bold tracking-tight text-white">
         {initials(university.name)}
       </span>
       {src && (
